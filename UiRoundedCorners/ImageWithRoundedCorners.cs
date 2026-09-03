@@ -5,14 +5,8 @@ namespace Nobi.UiRoundedCorners {
 	[ExecuteInEditMode]                             //Required to check the OnEnable function
 	[DisallowMultipleComponent]                     //You can only have one of these in every object.
 	[RequireComponent(typeof(RectTransform))]
-	public class ImageWithRoundedCorners : MonoBehaviour {
-		//The runtime material must never reach the scene or prefab hosting this component.
-		//OnEnable rebuilds it on every load (the material field below is deliberately not
-		//serialized), so a saved copy is dead weight that Unity rewrites with a fresh fileID
-		//on every save - churning the scene file and leaving orphaned Materials behind it.
-		//These flags keep the material in memory only.
-		private const HideFlags RuntimeMaterialFlags =
-			HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+	public class ImageWithRoundedCorners : MonoBehaviour, IMaterialModifier {
+		internal const string ShaderName = "UI/RoundedCorners/RoundedCorners";
 
 		private static readonly int Props = Shader.PropertyToID("_WidthHeightRadius");
 		private static readonly int prop_OuterUV = Shader.PropertyToID("_OuterUV");
@@ -26,16 +20,14 @@ namespace Nobi.UiRoundedCorners {
 		private void OnValidate() {
 			Validate();
 			Refresh();
+			SetMaterialDirty();
 		}
 
 		private void OnDestroy() {
-			if (image != null) {
-				image.material = null;      //This makes so that when the component is removed, the UI material returns to null
-			}
-
-			DestroyHelper.Destroy(material);
+			//Nothing was ever written to the Graphic, so removing this component only has to
+			//drop the material and ask the Graphic to resolve its own again.
+			RoundedCornersMaterial.Release(image, ref material);
 			image = null;
-			material = null;
 		}
 
 		private void OnEnable() {
@@ -49,6 +41,13 @@ namespace Nobi.UiRoundedCorners {
 
 			Validate();
 			Refresh();
+			SetMaterialDirty();
+		}
+
+		private void OnDisable() {
+			//A disabled corner rounder stops contributing its material, so the Graphic has to be
+			//told to resolve the unrounded one again.
+			SetMaterialDirty();
 		}
 
 		private void OnRectTransformDimensionsChange() {
@@ -59,16 +58,11 @@ namespace Nobi.UiRoundedCorners {
 
 		public void Validate() {
 			if (material == null) {
-				material = new Material(Shader.Find("UI/RoundedCorners/RoundedCorners"));
-				material.hideFlags = RuntimeMaterialFlags;
+				material = RoundedCornersMaterial.Create(ShaderName);
 			}
 
 			if (image == null) {
 				TryGetComponent(out image);
-			}
-
-			if (image != null) {
-				image.material = material;
 			}
 
 			if (image is Image uiImage && uiImage.sprite != null) {
@@ -76,7 +70,42 @@ namespace Nobi.UiRoundedCorners {
 			}
 		}
 
+		//Hands the material to the Graphic at render time instead of assigning
+		//Graphic.material. m_Material is a serialized field, so assigning it registered an
+		//m_Material prefab override on every instance - one that reappeared immediately after
+		//Revert, because OnValidate wrote it straight back. Nothing reaches serialized state
+		//through this path.
+		public Material GetModifiedMaterial(Material baseMaterial) {
+			if (!enabled) {
+				return baseMaterial;
+			}
+
+			if (material == null) {
+				material = RoundedCornersMaterial.Create(ShaderName);
+				if (material == null) {
+					return baseMaterial;
+				}
+
+				Refresh();
+			}
+
+			//MaskableGraphic is an IMaterialModifier on this same GameObject and generally runs
+			//first, so baseMaterial already carries the stencil state a parent Mask depends on.
+			RoundedCornersMaterial.CopyMaskState(baseMaterial, material);
+			return material;
+		}
+
+		private void SetMaterialDirty() {
+			if (image != null) {
+				image.SetMaterialDirty();
+			}
+		}
+
 		public void Refresh() {
+			if (material == null) {
+				return;
+			}
+
 			var rect = ((RectTransform)transform).rect;
 
 			//Multiply radius value by 2 to make the radius value appear consistent with ImageWithIndependentRoundedCorners script.

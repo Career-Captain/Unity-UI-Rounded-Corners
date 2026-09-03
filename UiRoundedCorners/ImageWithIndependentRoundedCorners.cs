@@ -8,6 +8,12 @@ namespace Nobi.UiRoundedCorners {
 	[DisallowMultipleComponent]                     //You can only have one of these in every object
 	[RequireComponent(typeof(RectTransform))]
 	public class ImageWithIndependentRoundedCorners : MonoBehaviour {
+		//See ImageWithRoundedCorners: the runtime material is rebuilt in OnEnable on every
+		//load, so a copy saved into the scene is dead weight that Unity rewrites with a fresh
+		//fileID on every save. These flags keep it in memory only.
+		private const HideFlags RuntimeMaterialFlags =
+			HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+
 		private static readonly int prop_halfSize = Shader.PropertyToID("_halfSize");
 		private static readonly int prop_radiuses = Shader.PropertyToID("_r");
 		private static readonly int prop_rect2props = Shader.PropertyToID("_rect2props");
@@ -64,6 +70,7 @@ namespace Nobi.UiRoundedCorners {
 		public void Validate() {
 			if (material == null) {
 				material = new Material(Shader.Find("UI/RoundedCorners/IndependentRoundedCorners"));
+				material.hideFlags = RuntimeMaterialFlags;
 			}
 
 			if (image == null) {

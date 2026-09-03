@@ -1,6 +1,6 @@
 {
     "name": "com.nobi.roundedcorners",
-    "displayName": "UI Rounded Corners",
+    "displayName": "UI Rounded Corners (CareerCaptain fork)",
     "version": "3.5.0",
     "description": "This package provides components and shaders that allow you to add rounded corners to UI elements!",
     "keywords": [

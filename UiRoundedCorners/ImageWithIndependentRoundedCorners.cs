@@ -4,8 +4,8 @@ using UnityEngine;
 using UnityEngine.UI;
 
 namespace Nobi.UiRoundedCorners {
-	[ExecuteInEditMode]                             //Required to do validation with OnEnable()
-	[DisallowMultipleComponent]                     //You can only have one of these in every object
+	[ExecuteAlways]
+	[DisallowMultipleComponent]
 	[RequireComponent(typeof(RectTransform))]
 	public class ImageWithIndependentRoundedCorners : MonoBehaviour, IMaterialModifier {
 		internal const string ShaderName = "UI/RoundedCorners/IndependentRoundedCorners";
@@ -26,7 +26,9 @@ namespace Nobi.UiRoundedCorners {
 
 		// xy - position,
 		// zw - halfSize
-		[HideInInspector, SerializeField] private Vector4 rect2props;
+		//Not serialized: RecalculateProps overwrites all four components on every Refresh and
+		//nothing reads it beforehand, so persisting it only produced prefab overrides on resize.
+		private Vector4 rect2props;
 		[HideInInspector, SerializeField] private MaskableGraphic image;
 
 		private void OnValidate() {
@@ -36,8 +38,17 @@ namespace Nobi.UiRoundedCorners {
 		}
 
 		private void OnEnable() {
-			//You can only add either ImageWithRoundedCorners or ImageWithIndependentRoundedCorners
-			//It will replace the other component when added into the object.
+			Validate();
+			Refresh();
+			SetMaterialDirty();
+		}
+
+		//You can only add either ImageWithRoundedCorners or ImageWithIndependentRoundedCorners
+		//It will replace the other component when added into the object. This sits in Reset and
+		//not OnEnable because under [ExecuteAlways] OnEnable also runs inside a Prefab Mode stage
+		//while the editor is playing, where destroying the sibling would edit the open Prefab.
+		//Consequence: a runtime AddComponent no longer replaces the other variant.
+		private void Reset() {
 			var other = GetComponent<ImageWithRoundedCorners>();
 			if (other != null) {
 				r = Vector4.one * other.radius;     //When it does, transfer the radius value to this script

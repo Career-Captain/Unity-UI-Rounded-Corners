@@ -2,8 +2,8 @@
 using UnityEngine.UI;
 
 namespace Nobi.UiRoundedCorners {
-	[ExecuteInEditMode]                             //Required to check the OnEnable function
-	[DisallowMultipleComponent]                     //You can only have one of these in every object.
+	[ExecuteAlways]
+	[DisallowMultipleComponent]
 	[RequireComponent(typeof(RectTransform))]
 	public class ImageWithRoundedCorners : MonoBehaviour, IMaterialModifier {
 		internal const string ShaderName = "UI/RoundedCorners/RoundedCorners";
@@ -31,8 +31,17 @@ namespace Nobi.UiRoundedCorners {
 		}
 
 		private void OnEnable() {
-			//You can only add either ImageWithRoundedCorners or ImageWithIndependentRoundedCorners
-			//It will replace the other component when added into the object.
+			Validate();
+			Refresh();
+			SetMaterialDirty();
+		}
+
+		//You can only add either ImageWithRoundedCorners or ImageWithIndependentRoundedCorners
+		//It will replace the other component when added into the object. This sits in Reset and
+		//not OnEnable because under [ExecuteAlways] OnEnable also runs inside a Prefab Mode stage
+		//while the editor is playing, where destroying the sibling would edit the open Prefab.
+		//Consequence: a runtime AddComponent no longer replaces the other variant.
+		private void Reset() {
 			var other = GetComponent<ImageWithIndependentRoundedCorners>();
 			if (other != null) {
 				radius = other.r.x;                 //When it does, transfer the radius value to this script

@@ -11,7 +11,15 @@ namespace Nobi.UiRoundedCorners {
 		private static readonly int Props = Shader.PropertyToID("_WidthHeightRadius");
 		private static readonly int prop_OuterUV = Shader.PropertyToID("_OuterUV");
 
+		public enum RadiusLimit {
+			None,
+			[InspectorName("Clamp To Size")] ClampToSize,
+			[InspectorName("Fully Round")] FullyRound,
+		}
+
 		public float radius = 40f;
+		[Tooltip("A radius above half the shorter side cuts the corners off. Clamp To Size caps the radius there, Fully Round always uses it.")]
+		public RadiusLimit radiusLimit = RadiusLimit.None;
 		private Material material;
 		private Vector4 outerUV = new Vector4(0, 0, 1, 1);
 
@@ -101,6 +109,19 @@ namespace Nobi.UiRoundedCorners {
 			}
 		}
 
+		//The radius actually drawn, after radiusLimit is applied to the current size.
+		public float EffectiveRadius {
+			get {
+				var rect = ((RectTransform)transform).rect;
+				var maxRadius = Mathf.Min(rect.width, rect.height) * 0.5f;
+				return radiusLimit switch {
+					RadiusLimit.ClampToSize => Mathf.Min(radius, maxRadius),
+					RadiusLimit.FullyRound => maxRadius,
+					_ => radius,
+				};
+			}
+		}
+
 		public void Refresh() {
 			if (material == null) {
 				return;
@@ -110,7 +131,7 @@ namespace Nobi.UiRoundedCorners {
 
 			//Multiply radius value by 2 to make the radius value appear consistent with ImageWithIndependentRoundedCorners script.
 			//Right now, the ImageWithIndependentRoundedCorners appears to have double the radius than this.
-			material.SetVector(Props, new Vector4(rect.width, rect.height, radius * 2, 0));
+			material.SetVector(Props, new Vector4(rect.width, rect.height, EffectiveRadius * 2, 0));
 			material.SetVector(prop_OuterUV, outerUV);
 		}
 	}

@@ -5,3 +5,4 @@ Fork of [kirevdokimov/Unity-UI-Rounded-Corners](https://github.com/kirevdokimov/
 - The runtime material is no longer saved into the scene file.
 - Handing it to the Graphic no longer creates an `m_Material` prefab override.
 - `UiRoundedCorners/Resources/RoundedCornersShaders.shadervariants` keeps both shaders in player builds. Nothing references them from a saved material anymore, so without it they are stripped and `Shader.Find` fails. Do not delete.
+- `ImageWithRoundedCorners` has a `Radius Limit` dropdown: `Clamp To Size` caps the radius at half the shorter side so shrinking never cuts the corners off, `Fully Round` always uses that maximum. Defaults to `None` (upstream behaviour). The inspector shows the radius actually drawn (`EffectiveRadius`): read-only in `Fully Round`, next to `Max Radius` in `Clamp To Size`.
